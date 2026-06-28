@@ -1,13 +1,20 @@
 from playwright.sync_api import sync_playwright
 
-
+import os
+from pathlib import Path
 class WedMeGoodScraper:
 
     @staticmethod
     def get_venues():
 
         venues = []
+        print("PLAYWRIGHT_BROWSERS_PATH:", os.getenv("PLAYWRIGHT_BROWSERS_PATH"))
 
+        browser_dir = Path("/ms-playwright")
+        print("Exists:", browser_dir.exists())
+
+        if browser_dir.exists():
+            print("Files:", list(browser_dir.iterdir()))
         with sync_playwright() as p:
 
             browser = p.chromium.launch(
