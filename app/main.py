@@ -1,107 +1,142 @@
-from app.data.booking_db import (
-    get_bookings
-)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
+
 from app.models.event import Event
-from app.services.event_service import EventService
-from fastapi import Query
-from app.services.vendor_service import VendorService
-from app.engine.package_generator import PackageGenerator
-from app.services.approval_service import ApprovalService
-from app.agents.planner_agent import planner
-from app.services.planning_service import PlanningService
+from app.models.profile import Profile
 from app.models.planning_request import PlanningRequest
-from app.services.memory_service import MemoryService
+
+from app.data.booking_db import get_bookings
+from app.data.package_store import (
+    approved_packages,
+    generated_packages,
+)
+
+from app.services.event_service import EventService
+from app.services.vendor_service import VendorService
+from app.services.vendor_ranking_service import VendorRankingService
+from app.services.wedmegood_service import WedMeGoodService
+from app.services.wedmegood_caterer_service import (
+    WedMeGoodCatererService,
+)
+from app.services.wedmegood_decorator_service import (
+    WedMeGoodDecoratorService,
+)
+from app.services.wedmegood_photographer_service import (
+    WedMeGoodPhotographerService,
+)
+
+from app.services.approval_service import ApprovalService
+from app.services.booking_service import BookingService
 from app.services.constraint_service import ConstraintService
 from app.services.form_service import FormService
-from app.data.package_store import approved_packages
-from app.services.booking_service import BookingService
+from app.services.memory_service import MemoryService
+from app.services.planning_service import PlanningService
 from app.services.profile_service import ProfileService
-from app.services.vendor_ranking_service import VendorRankingService
-from fastapi import FastAPI
-from app.agents.wedding_agent import WeddingAgent
-from app.services.wedmegood_service import WedMeGoodService
-from app.data.package_store import generated_packages
-from app.models.profile import Profile
-from app.services.profile_service import ProfileService
+
+from app.engine.package_generator import PackageGenerator
+from app.agents.planner_agent import planner
 
 from app.routers.chat import router as chat_router
+from app.routers.package_explanation import (
+    router as explanation_router,
+)
 
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
+
+# ---------------- CORS ---------------- #
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(chat_router)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.include_router(explanation_router)
+
+# ---------------- ROOT ---------------- #
+
 @app.get("/")
 def root():
-    return {"message": "Event Management Agent Running"}
+    return {
+        "message": "Event Management Agent Running"
+    }
+
+# ---------------- EVENTS ---------------- #
 
 @app.post("/create-event")
 def create_event(event: Event):
     return EventService.create_event(event)
+
+# ---------------- VENDORS ---------------- #
+
 @app.get("/vendors")
 def get_vendors():
     return VendorService.get_all_vendors()
+
+
 @app.get("/filter-vendors")
 def filter_vendors(
     location: str,
     guest_count: int,
     budget: float,
-    vendor_type: str
+    vendor_type: str,
 ):
     return VendorService.filter_vendors(
         location,
         guest_count,
         budget,
-        vendor_type
+        vendor_type,
     )
+
+
 @app.get("/recommend-vendors")
 def recommend_vendors(
     location: str,
     guest_count: int,
     budget: float,
-    vendor_type: str
+    vendor_type: str,
 ):
     return VendorService.get_ranked_vendors(
         location,
         guest_count,
         budget,
-        vendor_type
+        vendor_type,
     )
+
+# ---------------- PACKAGES ---------------- #
+
 @app.get("/generate-packages")
 def generate_packages(
     location: str,
     guest_count: int,
-    budget: float
+    budget: float,
 ):
     return PackageGenerator.generate_packages(
         location,
         guest_count,
-        budget
+        budget,
     )
+
+
 @app.post("/approve-package/{package_id}")
 def approve_package(package_id: str):
     return ApprovalService.approve_package(package_id)
+
+
 @app.get("/package-status/{package_id}")
 def package_status(package_id: str):
     return ApprovalService.get_status(package_id)
+
+# ---------------- PLANNER ---------------- #
+
 @app.post("/plan-event")
 def plan_event(data: PlanningRequest):
 
@@ -113,52 +148,34 @@ def plan_event(data: PlanningRequest):
         data.request
     )
 
-    print("EVENT DETAILS:", event_details)
-    print("CONSTRAINTS:", constraints)
-
     event_details["preferences"].update(
         constraints
     )
-    from app.services.wedmegood_service import WedMeGoodService
-    from app.services.wedmegood_caterer_service import WedMeGoodCatererService
-    from app.services.wedmegood_decorator_service import WedMeGoodDecoratorService
-    from app.services.wedmegood_photographer_service import WedMeGoodPhotographerService
 
     venues = VendorRankingService.rank_vendors(
         WedMeGoodService.get_venues(),
         budget=event_details["budget"],
         guest_count=event_details["guest_count"],
-        location=event_details["location"]
+        location=event_details["location"],
     )
 
     caterers = VendorRankingService.rank_vendors(
         WedMeGoodCatererService.get_caterers(),
         guest_count=event_details["guest_count"],
-        location=event_details["location"]
+        location=event_details["location"],
     )
 
     decorators = VendorRankingService.rank_vendors(
         WedMeGoodDecoratorService.get_decorators(),
-        location=event_details["location"]
+        location=event_details["location"],
     )
 
     photographers = VendorRankingService.rank_vendors(
         WedMeGoodPhotographerService.get_photographers(),
-        location=event_details["location"]
+        location=event_details["location"],
     )
-    print("\n========== VENUES ==========")
-    print(venues[:3])
 
-    print("\n========== CATERERS ==========")
-    print(caterers[:3])
-
-    print("\n========== DECORATORS ==========")
-    print(decorators[:3])
-
-    print("\n========== PHOTOGRAPHERS ==========")
-    print(photographers[:3])
-
-    result = planner.invoke(
+    return planner.invoke(
         {
             **event_details,
             "preferences": event_details["preferences"],
@@ -168,43 +185,12 @@ def plan_event(data: PlanningRequest):
             "photographers": photographers,
             "packages": [],
             "budget_analysis": {},
-            "needs_replan": False
+            "needs_replan": False,
         }
     )
 
-    return result
+# ---------------- PREFERENCES ---------------- #
 
-
-@app.get("/prepare-booking/{package_id}")
-def prepare_booking(package_id: str):
-
-    if package_id not in approved_packages:
-        return {
-            "error": "Package not approved"
-        }
-
-    package = approved_packages[package_id]
-
-    return FormService.prepare_booking(
-        package
-    )
-@app.post("/execute-booking/{package_id}")
-def execute_booking(package_id: str):
-
-    package = approved_packages[package_id]
-
-    BookingService.execute_browser_filling(
-        package
-    )
-
-    return {
-        "status": "booking_started"
-    }
-
-    return {
-        "status":
-        "BOOKING_EXECUTED"
-    }
 @app.post("/save-preferences")
 def save_preferences(preferences: dict):
 
@@ -212,56 +198,82 @@ def save_preferences(preferences: dict):
 
     return {
         "status": "saved",
-        "preferences": preferences
+        "preferences": preferences,
     }
+
+
 @app.get("/preferences")
 def get_preferences():
-
     return MemoryService.get_preferences()
-@app.get("/agent-booking/{package_id}")
-async def agent_booking(package_id: str):
 
-    print("BOOKING REQUEST:", package_id)
+# ---------------- PROFILE ---------------- #
+
+@app.post("/profile")
+def save_profile(profile: Profile):
+    return ProfileService.save_profile(
+        profile.model_dump()
+    )
+
+# ---------------- BOOKING ---------------- #
+
+@app.get("/prepare-booking/{package_id}")
+def prepare_booking(package_id: str):
 
     if package_id not in approved_packages:
-        print("NOT APPROVED")
+        return {"error": "Package not approved"}
+
+    return FormService.prepare_booking(
+        approved_packages[package_id]
+    )
+
+
+@app.post("/execute-booking/{package_id}")
+def execute_booking(package_id: str):
+
+    if package_id not in approved_packages:
         return {
             "error": "Package not approved"
         }
 
-    package = approved_packages[package_id]
+    BookingService.execute_browser_filling(
+        {
+            "booking_data":
+            approved_packages[package_id]
+        }
+    )
 
-    print("PACKAGE FOUND:", package)
+    return {
+        "message":
+        "Booking execution started"
+    }
+
+
+@app.get("/agent-booking/{package_id}")
+async def agent_booking(package_id: str):
+
+    if package_id not in approved_packages:
+        return {
+            "error": "Package not approved"
+        }
 
     return await BookingService.prepare(
-        package
+        approved_packages[package_id]
     )
+
+
 @app.post("/confirm-booking/{session_id}")
 async def confirm_booking(session_id: str):
     return await BookingService.confirm(
         session_id
     )
-@app.post("/save-profile")
-def save_profile(profile: dict):
 
-    return ProfileService.save_profile(
-        profile
-    )
+# ---------------- BOOKING DATA ---------------- #
 
-
-@app.post("/profile")
-def save_profile(profile: Profile):
-
-    return ProfileService.save_profile(
-        profile.model_dump()
-    )
 @app.get("/booking-data/{package_id}")
 def booking_data(package_id: int):
 
     profile = ProfileService.get_profile()
-
     preferences = MemoryService.get_preferences()
-
     package = generated_packages[package_id]
 
     return {
@@ -269,16 +281,29 @@ def booking_data(package_id: int):
         "email": profile.get("email"),
         "phone": profile.get("phone"),
         "gender": profile.get("gender"),
-
         "event_type": preferences.get("event_type"),
         "guest_count": preferences.get("guest_count"),
         "budget": preferences.get("budget"),
-
         "venue": package["venue"],
         "caterer": package["caterer"],
         "decorator": package["decorator"],
-        "photographer": package["photographer"]
+        "photographer": package["photographer"],
     }
+
+# ---------------- DEBUG ---------------- #
+
+@app.get("/python-check")
+async def python_check():
+
+    import sys
+    import playwright
+
+    return {
+        "python": sys.executable,
+        "playwright": playwright.__file__,
+    }
+
+
 @app.get("/test-loop")
 async def test_loop():
 
@@ -288,76 +313,43 @@ async def test_loop():
         "loop":
         str(type(asyncio.get_running_loop()))
     }
-@app.get("/python-check")
-async def python_check():
 
-    import sys
-    import playwright
-
-    return {
-        "python": sys.executable,
-        "playwright": playwright.__file__
-    }
-@app.get("/bookings")
-def bookings():
-
-    return get_bookings()
-from fastapi.concurrency import run_in_threadpool
+# ---------------- SCRAPERS ---------------- #
 
 @app.get("/wedmegood/venues")
 async def wedmegood_venues():
-
     return await run_in_threadpool(
         WedMeGoodService.get_venues
     )
-from app.services.wedmegood_photographer_service import (
-    WedMeGoodPhotographerService
-)
 
-@app.get("/wedmegood/photographers")
-def get_photographers():
-    return WedMeGoodPhotographerService.get_photographers()
 
-from app.services.wedmegood_caterer_service import (
-    WedMeGoodCatererService
-)
 @app.get("/wedmegood/caterers")
-def get_caterers():
+def wedmegood_caterers():
     return WedMeGoodCatererService.get_caterers()
 
-from app.services.wedmegood_decorator_service import (
-    WedMeGoodDecoratorService
-)
+
 @app.get("/wedmegood/decorators")
-def get_decorators():
+def wedmegood_decorators():
     return WedMeGoodDecoratorService.get_decorators()
+
+
+@app.get("/wedmegood/photographers")
+def wedmegood_photographers():
+    return WedMeGoodPhotographerService.get_photographers()
+
+# ---------------- BOOKINGS ---------------- #
+
+@app.get("/bookings")
+def bookings():
+    return get_bookings()
+
+# ---------------- STARTUP ---------------- #
+
 @app.on_event("startup")
 def startup():
 
     print("Loading vendors...")
 
     VendorService.get_all_vendors()
+
     print("Vendor cache ready")
-
-from app.routers.package_explanation import router as explanation_router
-
-app.include_router(explanation_router)
-@app.post("/execute-booking/{package_id}")
-def execute_booking(package_id: str):
-
-    if package_id not in approved_packages:
-        return {
-            "error": "Package not approved"
-        }
-
-    package = approved_packages[package_id]
-
-    BookingService.execute_browser_filling(
-        {
-            "booking_data": package
-        }
-    )
-
-    return {
-        "message": "Booking execution started"
-    }
