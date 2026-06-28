@@ -18,6 +18,12 @@ class WedMeGoodScraper:
                 "https://www.wedmegood.com/vendors/chennai/wedding-venues/",
                 wait_until="networkidle"
             )
+            print("TITLE:", page.title())
+            print("URL:", page.url)
+            
+            page.screenshot(path="page.png")
+            
+            print(page.content()[:1500])
 
             page.wait_for_timeout(5000)
 
