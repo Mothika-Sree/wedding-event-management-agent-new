@@ -10,7 +10,7 @@ class WedMeGoodScraper:
 
         with sync_playwright() as p:
 
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=True)
 
             page = browser.new_page()
 
