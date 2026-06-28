@@ -8,7 +8,14 @@ class WedMeGoodDecoratorScraper:
 
         with sync_playwright() as p:
 
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage"
+                ]
+            )
 
             page = browser.new_page()
 
@@ -18,6 +25,13 @@ class WedMeGoodDecoratorScraper:
             )
 
             page.wait_for_timeout(5000)
+            print("TITLE:", page.title())
+            print("URL:", page.url)
+            page.screenshot(path="debug.png")
+
+            cards = page.locator("div.vendor-card")
+
+            print("TOTAL:", cards.count())
             vendor_links = []
 
             vendors = page.locator("a.vendor-detail")
