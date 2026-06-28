@@ -37,6 +37,10 @@ class WedMeGoodScraper:
             print("TITLE:", page.title())
             print("URL:", page.url)
             page.screenshot(path="debug.png")
+            page.screenshot(path="/tmp/debug.png", full_page=True)
+            print("Screenshot saved")
+            print("HTML START:")
+            print(page.content()[:1000])
 
             cards = page.locator("div.vendor-card")
 
