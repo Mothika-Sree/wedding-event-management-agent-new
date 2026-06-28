@@ -10,7 +10,14 @@ class WedMeGoodScraper:
 
         with sync_playwright() as p:
 
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage"
+                ]
+            )
 
             page = browser.new_page()
 
@@ -21,9 +28,10 @@ class WedMeGoodScraper:
             print("TITLE:", page.title())
             print("URL:", page.url)
             
-            page.screenshot(path="page.png")
+            page.screenshot(path="debug.png")
             
-            print(page.content()[:1500])
+            cards = page.locator("div.vendor-card")
+            print("TOTAL CARDS:", cards.count())
 
             page.wait_for_timeout(5000)
 
