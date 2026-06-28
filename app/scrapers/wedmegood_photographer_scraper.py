@@ -1,6 +1,6 @@
 # app/scrapers/wedmegood_photographer_scraper.py
 
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 
 
 class WedMeGoodPhotographerScraper:
@@ -10,7 +10,7 @@ class WedMeGoodPhotographerScraper:
 
         photographers = []
 
-        with async_playwright() as p:
+        with sync_playwright() as p:
 
             browser = p.chromium.launch(
                 headless=False
