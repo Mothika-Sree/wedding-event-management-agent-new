@@ -13,7 +13,12 @@ class WedMeGoodPhotographerScraper:
         with sync_playwright() as p:
 
             browser = p.chromium.launch(
-                headless=False
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage"
+                ]
             )
 
             page = browser.new_page()
@@ -27,6 +32,13 @@ class WedMeGoodPhotographerScraper:
                 )
 
                 page.wait_for_timeout(10000)
+                print("TITLE:", page.title())
+                print("URL:", page.url)
+                page.screenshot(path="debug.png")
+    
+                cards = page.locator("div.vendor-card")
+    
+                print("TOTAL:", cards.count())
 
             except Exception as e:
 
