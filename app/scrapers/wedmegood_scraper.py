@@ -1,4 +1,4 @@
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 
 
 class WedMeGoodScraper:
@@ -8,7 +8,7 @@ class WedMeGoodScraper:
 
         venues = []
 
-        with async_playwright() as p:
+        with sync_playwright() as p:
 
             browser = p.chromium.launch(
                 headless=True,
