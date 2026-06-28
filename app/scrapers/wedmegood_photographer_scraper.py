@@ -35,9 +35,9 @@ class WedMeGoodPhotographerScraper:
                 print("TITLE:", page.title())
                 print("URL:", page.url)
                 page.screenshot(path="debug.png")
-    
+
                 cards = page.locator("div.vendor-card")
-    
+
                 print("TOTAL:", cards.count())
 
             except Exception as e:
