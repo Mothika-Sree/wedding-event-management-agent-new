@@ -345,11 +345,11 @@ def bookings():
 
 # ---------------- STARTUP ---------------- #
 
-@app.on_event("startup")
-def startup():
+#@app.on_event("startup")
+#def startup():
 
-    print("Loading vendors...")
+ #   print("Loading vendors...")
 
-    VendorService.get_all_vendors()
+  #  VendorService.get_all_vendors()
 
-    print("Vendor cache ready")
+   # print("Vendor cache ready")
