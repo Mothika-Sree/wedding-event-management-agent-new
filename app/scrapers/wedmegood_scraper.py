@@ -1,20 +1,12 @@
 from playwright.sync_api import sync_playwright
 
-import os
-from pathlib import Path
 class WedMeGoodScraper:
 
     @staticmethod
     def get_venues():
 
         venues = []
-        print("PLAYWRIGHT_BROWSERS_PATH:", os.getenv("PLAYWRIGHT_BROWSERS_PATH"))
-
-        browser_dir = Path("/ms-playwright")
-        print("Exists:", browser_dir.exists())
-
-        if browser_dir.exists():
-            print("Files:", list(browser_dir.iterdir()))
+        
         with sync_playwright() as p:
 
             browser = p.chromium.launch(
@@ -22,30 +14,54 @@ class WedMeGoodScraper:
                 args=[
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage"
+                    "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled"
                 ]
             )
 
-            page = browser.new_page()
+            context = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/137.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1366, "height": 768},
+                locale="en-US",
+                timezone_id="Asia/Kolkata"
+            )
+
+            page = context.new_page()
+
+            page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
+
+            page.set_extra_http_headers({
+                "Accept-Language": "en-US,en;q=0.9",
+                "Upgrade-Insecure-Requests": "1"
+            })
 
             page.goto(
                 "https://www.wedmegood.com/vendors/chennai/wedding-venues/",
-                wait_until="networkidle"
+                wait_until="domcontentloaded",
+                timeout=60000
             )
-            
-            page.wait_for_timeout(5000)
+
+            page.wait_for_timeout(8000)
+
             print("TITLE:", page.title())
             print("URL:", page.url)
-            page.screenshot(path="debug.png")
+
             page.screenshot(path="/tmp/debug.png", full_page=True)
-            print("Screenshot saved")
+
             print("HTML START:")
             print(page.content()[:1000])
 
             cards = page.locator("div.vendor-card")
 
             print("TOTAL:", cards.count())
-
             for i in range(1, cards.count(), 2):
 
                 try:
