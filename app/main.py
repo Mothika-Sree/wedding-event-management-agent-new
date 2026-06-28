@@ -316,6 +316,8 @@ async def test_loop():
 
 # ---------------- SCRAPERS ---------------- #
 
+from fastapi.concurrency import run_in_threadpool
+
 @app.get("/wedmegood/venues")
 async def wedmegood_venues():
     return await run_in_threadpool(
@@ -324,18 +326,24 @@ async def wedmegood_venues():
 
 
 @app.get("/wedmegood/caterers")
-def wedmegood_caterers():
-    return WedMeGoodCatererService.get_caterers()
+async def wedmegood_caterers():
+    return await run_in_threadpool(
+        WedMeGoodCatererService.get_caterers
+    )
 
 
 @app.get("/wedmegood/decorators")
-def wedmegood_decorators():
-    return WedMeGoodDecoratorService.get_decorators()
+async def wedmegood_decorators():
+    return await run_in_threadpool(
+        WedMeGoodDecoratorService.get_decorators
+    )
 
 
 @app.get("/wedmegood/photographers")
-def wedmegood_photographers():
-    return WedMeGoodPhotographerService.get_photographers()
+async def wedmegood_photographers():
+    return await run_in_threadpool(
+        WedMeGoodPhotographerService.get_photographers
+    )
 
 # ---------------- BOOKINGS ---------------- #
 
